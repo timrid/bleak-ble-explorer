@@ -1,14 +1,14 @@
 import toga
-from toga.style import Pack
-from toga.style.pack import COLUMN, ROW
-
 from bleak import BleakClient
 from bleak.backends.characteristic import BleakGATTCharacteristic
 from bleak.backends.descriptor import BleakGATTDescriptor
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
 from bleak.backends.service import BleakGATTService, BleakGATTServiceCollection
-from bleak_example.custom_list_view import CustomListRow, CustomListView
+from toga.style import Pack
+from toga.style.pack import COLUMN, ROW  # type: ignore
+
+from bleakbleexplorer.custom_list_view import CustomListRow, CustomListView
 
 
 class ServiceRow(CustomListRow):
@@ -122,9 +122,9 @@ class BLEDeviceBox(toga.Box):
             s += f"Service UUID: {service_uuid}\n"
         self.adv_data_txt.value = s
 
-    async def connect_client(self, widget):
+    async def connect_client(self, widget: toga.Widget):
         async with BleakClient(self.device) as client:
             self.services_view.set_services(client.services)
 
-    def show_main_box(self, widget):
+    def show_main_box(self, widget: toga.Widget):
         self.main_window.content = self.parent_box

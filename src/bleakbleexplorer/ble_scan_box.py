@@ -1,18 +1,16 @@
 import asyncio
-import contextlib
 import traceback
-from typing import Any, Callable
+from typing import Callable
 
 import toga
-from bleak_example.ble_device_box import BLEDeviceBox
-from bleak_example.custom_list_view import CustomListRow, CustomListView
-from toga import Button, DetailedList
-from toga.style import Pack
-from toga.style.pack import COLUMN, ROW
-
 from bleak import BleakScanner
 from bleak.backends.device import BLEDevice
 from bleak.backends.scanner import AdvertisementData
+from toga.style import Pack
+from toga.style.pack import COLUMN, ROW  # type: ignore
+
+from bleakbleexplorer.ble_device_box import BLEDeviceBox
+from bleakbleexplorer.custom_list_view import CustomListRow, CustomListView
 
 
 class BLEDeviceRow(CustomListRow):
@@ -82,10 +80,10 @@ class BLEDeviceRow(CustomListRow):
 
         self.add(self.divider_box)
 
-    def on_connect_press(self, widget):
+    def on_connect_press(self, widget: toga.Widget):
         self.on_connect(self.device, self.adv_data)
 
-    def on_details_press(self, widget):
+    def on_details_press(self, widget: toga.Widget):
         if self.details_shown is False:
             self.show_details()
             self.details_shown = True
@@ -176,7 +174,7 @@ class BLEScanBox(toga.Box):
         super().__init__(style=Pack(direction=COLUMN))
         self.main_window = main_window
 
-        self.scan_button = Button(
+        self.scan_button = toga.Button(
             "Scan for BLE devices",
             on_press=self.start_scan,
         )
@@ -190,7 +188,7 @@ class BLEScanBox(toga.Box):
         self.add(self.scan_button)
         self.add(self.scan_results_view)
 
-    async def start_scan(self, widget):
+    async def start_scan(self, widget: toga.Widget):
         """Use scanner with 'with' container.
 
         The scan result in scanner.discovered_devices and

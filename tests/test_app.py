@@ -14,7 +14,7 @@ def test_first2(emulator_controller: EmulatorControllerClient):
     """An initial test for the app."""
     emulator_controller.ping()
     emulator_controller.grand_permission(
-        package="com.bleak.briefcaseexample.bleak_example",
+        package="com.timrid.bleakbleexplorer",
         permission="android.permission.BLUETOOTH_SCAN",
     )
     emulator_controller.activate_bluetooth()

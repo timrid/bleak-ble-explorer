@@ -43,9 +43,10 @@ def main():
     with event_loop() as loop:
         thread = Thread(target=run_tests)
 
-        # Queue a background task to run that will start the main thread. We do this,
-        # instead of just starting the thread directly, so that we can make sure the App has
-        # been fully initialized, and the event loop is running.
+        # Queue a background task to run that will start the main thread. We
+        # do this, instead of just starting the thread directly, so that we can
+        # make sure the App has been fully initialized, and the event loop is
+        # running.
         loop.call_soon_threadsafe(thread.start)
 
 
