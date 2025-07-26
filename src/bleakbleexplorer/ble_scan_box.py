@@ -233,6 +233,4 @@ class BLEScanBox(toga.Box):
             )
 
     def show_device_data(self, device: BLEDevice, adv_data: AdvertisementData):
-        self.main_window.content = BLEDeviceBox(
-            self.main_window, self, device, adv_data
-        )
+        self.main_window.content = BLEDeviceBox(self.main_window, self, device)
