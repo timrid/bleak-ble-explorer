@@ -1,0 +1,14 @@
+{
+    "[python]": {
+        "editor.defaultFormatter": "charliermarsh.ruff",
+        "editor.formatOnSave": true,
+        "editor.codeActionsOnSave": {
+            "source.organizeImports": "explicit"
+        },
+    },
+    "black-formatter.importStrategy": "fromEnvironment",
+    "isort.importStrategy": "fromEnvironment",
+    "isort.args":["--profile", "black"],
+    "flake8.importStrategy": "fromEnvironment",
+    "python.analysis.typeCheckingMode": "strict"
+}
