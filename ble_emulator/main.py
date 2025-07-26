@@ -1,11 +1,21 @@
+import contextlib
+import dataclasses
+from typing import AsyncIterator
+
 from adb_helper import call_adb
-from ble_gatt_server import BleGattServer, start_server_task
+from ble_peripheral import BlePeripheral1, BlePeripheralDatabase
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
-app = FastAPI()
 
-global_ble_gatt_server: BleGattServer | None = None
+@contextlib.asynccontextmanager
+async def lifespan(app: FastAPI):
+    app.state.ble_peripherals = BlePeripheralDatabase()
+    yield
+    await app.state.ble_peripherals.stop_all()
+
+
+app = FastAPI(lifespan=lifespan)
 
 
 @app.exception_handler(Exception)
@@ -42,41 +52,29 @@ async def activate_bluetooth():
         call_adb(["shell", "input", "keyevent", "23"])  # Enter
 
 
-@app.post("/gatt_server/start/")
-async def gatt_server_start():
-    global global_ble_gatt_server
-
-    try:
-        global_ble_gatt_server = await start_server_task()
-        return JSONResponse(
-            status_code=200,
-            content={"status": "GATT server task started"},
-        )
-    except Exception as e:
-        return JSONResponse(
-            status_code=500,
-            content={
-                "status": "GATT server failed",
-                "error": str(e),
-            },
-        )
+@app.post("/ble_peripheral/start/")
+async def ble_peripheral_start(
+    name: str = "Bumble", address: str = "F0:F1:F2:F3:F4:F5"
+):
+    peripheral = BlePeripheral1(name, address)
+    await peripheral.start_peripheral()
+    peripheral_id = app.state.ble_peripherals.add_peripheral(peripheral)
+    return JSONResponse(
+        status_code=200,
+        content={"status": "GATT server task started", "peripheral_id": peripheral_id},
+    )
 
 
-@app.post("/gatt_server/status/")
-async def gatt_server_status():
-    if global_ble_gatt_server is None:
-        return JSONResponse(
-            status_code=503,
-            content={"status": "GATT server not running"},
-        )
-    else:
-        return JSONResponse(
-            status_code=200,
-            content={"status": "GATT server running"},
-        )
+@app.post("/ble_peripheral/stop/")
+async def ble_peripheral_stop(peripheral_id: str):
+    app.state.ble_peripherals.stop_peripheral(peripheral_id)
+    return JSONResponse(
+        status_code=200,
+        content={"status": "Peripheral stopped"},
+    )
 
 
 if __name__ == "__main__":
     import uvicorn
 
-    uvicorn.run(app, host="127.0.0.1", port=8000)
+    uvicorn.run(app, host="127.0.0.1", port=8000, log_level="debug")

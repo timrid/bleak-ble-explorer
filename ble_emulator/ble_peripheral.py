@@ -1,4 +1,9 @@
+import abc
+import asyncio
+import dataclasses
 import logging
+from typing import override
+from uuid import uuid4
 
 from bumble.att import ATT_INSUFFICIENT_ENCRYPTION_ERROR, ATT_Error
 from bumble.device import Connection, Device, DeviceConfiguration
@@ -12,35 +17,98 @@ from bumble.gatt import (
     Service,
 )
 from bumble.host import Host
+from bumble.transport import open_transport
 from bumble.transport.common import Transport
 
 
+class BlePeripheralDatabase:
+    def __init__(self):
+        self.db: dict[str, BlePeripheral] = {}
+
+    def add_peripheral(self, peripheral: "BlePeripheral") -> str:
+        peripheral_id = str(uuid4())
+        self.db[peripheral_id] = peripheral
+        return peripheral_id
+
+    async def stop_peripheral(self, peripheral_id: str):
+        peripheral = self.db[peripheral_id]
+        assert peripheral.transport
+        assert peripheral.wait_task
+
+        peripheral.wait_task.cancel()
+        await peripheral.transport.close()
+
+        del self.db[peripheral_id]
+
+    async def stop_all(self):
+        for peripheral_id, peripheral in list(self.db.items()):
+            await self.stop_peripheral(peripheral_id)
+
+
 class Listener(Device.Listener, Connection.Listener):
-    def __init__(self, device: Device):
+    def __init__(self, device):
         self.device = device
 
     def on_connection(self, connection):
-        logging.info(f"=== Connected to {connection}")
+        print(f"=== Connected to {connection}")
         connection.listener = self
 
     def on_disconnection(self, reason):
-        logging.info(f"### Disconnected, reason={reason}")
+        print(f"### Disconnected, reason={reason}")
 
 
-class BleDevice1(Device):
-    def __init__(self, transport: Transport):
+@dataclasses.dataclass
+class BlePeripheral:
+    def __init__(self):
+        self.transport: Transport | None = None
+        self.wait_task: asyncio.Task | None = None
+
+    async def start_peripheral(self):
+        """
+        Peripheral starten
+        """
+        print("Opening transport")
+        self.transport = await open_transport("android-netsim")
+
+        print("Creating device")
+        device = self.create_device()
+
+        print("Power device on")
+        await device.power_on()
+
+        print("Start advertising")
+        await device.start_advertising(auto_restart=True)
+
+        self.wait_task = asyncio.create_task(
+            self.transport.source.wait_for_termination()  # type: ignore
+        )
+
+    @abc.abstractmethod
+    def create_device(self) -> Device: ...
+
+
+class BlePeripheral1(BlePeripheral):
+    def __init__(self, name: str, address: str):
+        super().__init__()
+        self.name = name
+        self.address = address
+
+    @override
+    def create_device(self) -> Device:
+        assert self.transport
+
         config = DeviceConfiguration.from_dict(
             {
-                "name": "Bumble",
-                "address": "F0:F1:F2:F3:F4:F5",
+                "name": self.name,
+                "address": self.address,
                 "advertising_interval": 2000,
                 "keystore": "JsonKeyStore",
                 "irk": "865F81FF5A8B486EAAE29A27AD9F77DC",
             }
         )
-        super().__init__(config=config, host=Host(transport.source, transport.sink))
-
-        self.listener = Listener(self)
+        device = Device(
+            config=config, host=Host(self.transport.source, self.transport.sink)
+        )
 
         # Add a few entries to the device's GATT server
         descriptor = Descriptor(
@@ -86,7 +154,10 @@ class BleDevice1(Device):
                 ),
             ],
         )
-        self.add_services([device_info_service, custom_service1])
+        device.add_services([device_info_service, custom_service1])
+        device.listener = Listener(device)
+
+        return device
 
     def my_custom_read(self, connection):
         logging.info("----- READ from", connection)
