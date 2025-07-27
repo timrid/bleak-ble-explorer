@@ -1,11 +1,15 @@
 import abc
 import asyncio
 import dataclasses
+import enum
 import logging
+import random
+import struct
 from typing import override
 from uuid import uuid4
 
 from bumble.att import ATT_INSUFFICIENT_ENCRYPTION_ERROR, ATT_Error
+from bumble.core import AdvertisingData
 from bumble.device import Connection, Device, DeviceConfiguration
 from bumble.gatt import (
     GATT_CHARACTERISTIC_USER_DESCRIPTION_DESCRIPTOR,
@@ -17,6 +21,7 @@ from bumble.gatt import (
     Service,
 )
 from bumble.host import Host
+from bumble.profiles.battery_service import BatteryService
 from bumble.transport import open_transport
 from bumble.transport.common import Transport
 
@@ -87,7 +92,7 @@ class BlePeripheral:
     def create_device(self) -> Device: ...
 
 
-class BlePeripheral1(BlePeripheral):
+class BlePeripheral_Example(BlePeripheral):
     def __init__(self, name: str, address: str):
         super().__init__()
         self.name = name
@@ -177,3 +182,74 @@ class BlePeripheral1(BlePeripheral):
         logging.info(f"----- WRITE from {connection}: {value}", "[returning error]")
         if not connection.is_encrypted:
             raise ATT_Error(ATT_INSUFFICIENT_ENCRYPTION_ERROR)
+
+
+class BlePeripheral_BatteryService(BlePeripheral):
+    def __init__(self, name: str, address: str):
+        super().__init__()
+        self.name = name
+        self.address = address
+
+    @override
+    def create_device(self) -> Device:
+        assert self.transport
+
+        config = DeviceConfiguration.from_dict(
+            {
+                "name": self.name,
+                "address": self.address,
+                "advertising_interval": 2000,
+                "keystore": "JsonKeyStore",
+                "irk": "865F81FF5A8B486EAAE29A27AD9F77DC",
+            }
+        )
+        device = Device(
+            config=config, host=Host(self.transport.source, self.transport.sink)
+        )
+
+        # Add a Battery Service to the GATT sever
+        battery_service = BatteryService(lambda _: random.randint(0, 100))
+        device.add_service(battery_service)
+
+        # Set the advertising data
+        device.advertising_data = bytes(
+            AdvertisingData(
+                [
+                    (
+                        AdvertisingData.COMPLETE_LOCAL_NAME,
+                        bytes("Bumble Battery", "utf-8"),
+                    ),
+                    (
+                        AdvertisingData.INCOMPLETE_LIST_OF_16_BIT_SERVICE_CLASS_UUIDS,
+                        bytes(battery_service.uuid),
+                    ),
+                    (AdvertisingData.APPEARANCE, struct.pack("<H", 0x0340)),
+                    (
+                        AdvertisingData.SERVICE_DATA_16_BIT_UUID,
+                        struct.pack("<H", 0x180F)
+                        + b"\x64",  # 0x64 = Beispielwert (100%)
+                    ),
+                ]
+            )
+        )
+        device.listener = Listener(device)
+
+        return device
+
+
+class BlePeripheralType(enum.StrEnum):
+    Example = enum.auto()
+    BatteryService = enum.auto()
+
+
+BLE_PERIPHERAL_TYPE_MAPPING = {
+    BlePeripheralType.Example: BlePeripheral_Example,
+    BlePeripheralType.BatteryService: BlePeripheral_BatteryService,
+}
+
+
+def create_ble_peripheral(
+    typ: BlePeripheralType, name: str, address: str
+) -> BlePeripheral:
+    cls = BLE_PERIPHERAL_TYPE_MAPPING[typ]
+    return cls(name, address)

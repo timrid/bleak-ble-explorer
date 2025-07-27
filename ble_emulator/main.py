@@ -3,7 +3,11 @@ import dataclasses
 from typing import AsyncIterator
 
 from adb_helper import call_adb
-from ble_peripheral import BlePeripheral1, BlePeripheralDatabase
+from ble_peripheral import (
+    BlePeripheralDatabase,
+    BlePeripheralType,
+    create_ble_peripheral,
+)
 from fastapi import FastAPI, Request
 from fastapi.responses import JSONResponse
 
@@ -54,9 +58,9 @@ async def activate_bluetooth():
 
 @app.post("/ble_peripheral/start/")
 async def ble_peripheral_start(
-    name: str = "Bumble", address: str = "F0:F1:F2:F3:F4:F5"
+    typ: BlePeripheralType, name: str = "Bumble", address: str = "F0:F1:F2:F3:F4:F5"
 ):
-    peripheral = BlePeripheral1(name, address)
+    peripheral = create_ble_peripheral(typ, name, address)
     await peripheral.start_peripheral()
     peripheral_id = app.state.ble_peripherals.add_peripheral(peripheral)
     return JSONResponse(

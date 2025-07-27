@@ -10,7 +10,7 @@ author_email = "6593626+timrid@users.noreply.github.com"
 
 [tool.briefcase.app.bleakbleexplorer]
 formal_name = "Bleak BLE Explorer"
-description = "Example Applikation for the BLE Library b\"bleak\""
+description = "Example Applikation for the BLE Library bleak"
 long_description = """More details about the app should go here.
 """
 sources = [
@@ -22,7 +22,8 @@ test_sources = [
 
 requires = [
     # "bleak",
-    "/Users/timrid/Documents/bleak"
+    # "/Users/timrid/Documents/bleak"
+    "../bleak"
 ]
 test_requires = [
     "pytest",
